@@ -164,6 +164,8 @@ class DdlParseColumn(DdlParseTableColumnBase):
         constraints = {}
         constraints['null'] = ''
         constraints['auto_increment'] = ''
+        constraints['auto_random'] = ''
+        constraints['auto_random_bits'] = ''
         constraints['key'] = ''
         constraints['default'] = ''
         constraints['comment'] = ''
@@ -189,6 +191,11 @@ class DdlParseColumn(DdlParseTableColumnBase):
         self._distkey        = True if len(constraints['distkey']) > 0 else False
         self._sortkey        = True if len(constraints['sortkey']) > 0 else False
         self._character_set  = constraints['character_set'] if constraints['character_set'] else None
+
+        self._auto_random = True if len(constraints['auto_random']) > 0 else False
+        self._auto_random_bits = None
+        if self._auto_random:
+            self._auto_random_bits = constraints['auto_random_bits'] if len(constraints['auto_random_bits']) > 0 else 5
 
         self._encode = None
         if constraint is not None:
@@ -260,6 +267,14 @@ class DdlParseColumn(DdlParseTableColumnBase):
     @property
     def auto_increment(self):
         return self._auto_increment
+
+    @property
+    def auto_random(self):
+        return self._auto_random
+
+    @property
+    def auto_random_bits(self):
+        return self._auto_random_bits
 
     @property
     def distkey(self):
@@ -576,7 +591,7 @@ class DdlParseTable(DdlParseTableColumnBase):
 class DdlParse(DdlParseBase):
     """DDL parser"""
 
-    _LPAR, _RPAR, _COMMA, _SEMICOLON, _DOT, _DOUBLEQUOTE, _BACKQUOTE, _SPACE = map(Suppress, "(),;.\"` ")
+    _LPAR, _RPAR, _COMMA, _SEMICOLON, _DOT, _DOUBLEQUOTE, _BACKQUOTE, _SPACE, _SLASH, _BACKSLASH, _STAR, _EXCLAMATION, _LSQUARE, _RSQUARE = map(Suppress, "(),;.\"` /\\*![]")
     _CREATE, _TABLE, _TEMP, _CONSTRAINT, _NOT_NULL, _PRIMARY_KEY, _UNIQUE, _UNIQUE_KEY, _FOREIGN_KEY, _REFERENCES, _KEY, _CHAR_SEMANTICS, _BYTE_SEMANTICS = \
         map(CaselessKeyword, "CREATE, TABLE, TEMP, CONSTRAINT, NOT NULL, PRIMARY KEY, UNIQUE, UNIQUE KEY, FOREIGN KEY, REFERENCES, KEY, CHAR, BYTE".replace(", ", ",").split(","))
     _TYPE_UNSIGNED, _TYPE_ZEROFILL = \
@@ -645,8 +660,13 @@ class DdlParse(DdlParseBase):
                         Regex(r"(?!--)", re.IGNORECASE)
                         + Group(
                             Optional(Regex(r"\b(?:NOT\s+)NULL?\b", re.IGNORECASE))("null")
-                            & Optional(Regex(r"\bAUTO_INCREMENT\b", re.IGNORECASE))("auto_increment")
-                            & Optional(Regex(r"\b(UNIQUE|PRIMARY)(?:\s+KEY)?\b", re.IGNORECASE))("key")
+                            & Optional(
+                                Optional(Regex(r"\bAUTO_INCREMENT\b", re.IGNORECASE))("auto_increment")
+                                # Support TiDB AutoRandom
+                                ^ Optional(Optional(Regex(r"\bAUTO_RANDOM\b", re.IGNORECASE))("auto_random") + Optional(_LPAR + Regex(r"\b\d+\b")("auto_random_bits") + _RPAR))
+                                ^ Optional("/*T![auto_rand]" + Regex(r"AUTO_RANDOM", re.IGNORECASE)("auto_random") + _LPAR + Regex(r"\b\d+\b")("auto_random_bits") + _RPAR + "*/")
+                            )
+                            & Optional(Regex(r"\b(UNIQUE|PRIMARY)(?:\s+)(KEY|INDEX)?\b", re.IGNORECASE))("key")
                             & Optional(Regex(
                                 r"\bDEFAULT\b\s+(?:((?:[A-Za-z0-9_\.\'\" -\{\}]|[^\x01-\x7E])*\:\:(?:character varying)?[A-Za-z0-9\[\]]+)|(?:\')((?:\\\'|[^\']|,)+)(?:\')|(?:\")((?:\\\"|[^\"]|,)+)(?:\")|([^,\s]+))",
                                 re.IGNORECASE))("default")

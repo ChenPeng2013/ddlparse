@@ -1185,6 +1185,7 @@ def test_parse(test_case, parse_pattern):
             'primary_key': False,
             'unique': False,
             'auto_increment': False,
+            'auto_random': False,
             'distkey': False,
             'sortkey': False,
             'encode': None,
@@ -1213,6 +1214,7 @@ def test_parse(test_case, parse_pattern):
         assert col.comment           == data_col["description"] if data_col["description"] is not None else col.comment is None
         assert col.description       == data_col["description"] if data_col["description"] is not None else col.description is None
         assert col.auto_increment    == data_col["auto_increment"]
+        assert col.auto_random       == data_col["auto_random"]
         assert col.distkey           == data_col["distkey"]
         assert col.sortkey           == data_col["sortkey"]
         assert col.encode            == data_col["encode"]
