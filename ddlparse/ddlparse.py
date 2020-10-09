@@ -591,7 +591,7 @@ class DdlParseTable(DdlParseTableColumnBase):
 class DdlParse(DdlParseBase):
     """DDL parser"""
 
-    _LPAR, _RPAR, _COMMA, _SEMICOLON, _DOT, _DOUBLEQUOTE, _BACKQUOTE, _SPACE, _SLASH, _BACKSLASH, _STAR, _EXCLAMATION, _LSQUARE, _RSQUARE = map(Suppress, "(),;.\"` /\\*![]")
+    _LPAR, _RPAR, _COMMA, _SEMICOLON, _DOT, _DOUBLEQUOTE, _BACKQUOTE, _SPACE = map(Suppress, "(),;.\"` ")
     _CREATE, _TABLE, _TEMP, _CONSTRAINT, _NOT_NULL, _PRIMARY_KEY, _UNIQUE, _UNIQUE_KEY, _FOREIGN_KEY, _REFERENCES, _KEY, _CHAR_SEMANTICS, _BYTE_SEMANTICS = \
         map(CaselessKeyword, "CREATE, TABLE, TEMP, CONSTRAINT, NOT NULL, PRIMARY KEY, UNIQUE, UNIQUE KEY, FOREIGN KEY, REFERENCES, KEY, CHAR, BYTE".replace(", ", ",").split(","))
     _TYPE_UNSIGNED, _TYPE_ZEROFILL = \
