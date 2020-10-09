@@ -661,10 +661,10 @@ class DdlParse(DdlParseBase):
                         + Group(
                             Optional(Regex(r"\b(?:NOT\s+)NULL?\b", re.IGNORECASE))("null")
                             & Optional(
-                                Optional(Regex(r"\bAUTO_INCREMENT\b", re.IGNORECASE))("auto_increment")
+                                Regex(r"\bAUTO_INCREMENT\b", re.IGNORECASE)("auto_increment")
                                 # Support TiDB AutoRandom
-                                ^ Optional(Optional(Regex(r"\bAUTO_RANDOM\b", re.IGNORECASE))("auto_random") + Optional(_LPAR + Regex(r"\b\d+\b")("auto_random_bits") + _RPAR))
-                                ^ Optional("/*T![auto_rand]" + Regex(r"AUTO_RANDOM", re.IGNORECASE)("auto_random") + _LPAR + Regex(r"\b\d+\b")("auto_random_bits") + _RPAR + "*/")
+                                ^ Regex(r"\bAUTO_RANDOM\b", re.IGNORECASE)("auto_random") + Optional(_LPAR + Regex(r"\b\d+\b")("auto_random_bits") + _RPAR)
+                                ^ "/*T![auto_rand]" + Regex(r"AUTO_RANDOM", re.IGNORECASE)("auto_random") + _LPAR + Regex(r"\b\d+\b")("auto_random_bits") + _RPAR + "*/"
                             )
                             & Optional(Regex(r"\b(UNIQUE|PRIMARY)(?:\s+)(KEY|INDEX)?\b", re.IGNORECASE))("key")
                             & Optional(Regex(
