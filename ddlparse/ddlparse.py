@@ -173,6 +173,7 @@ class DdlParseColumn(DdlParseTableColumnBase):
         constraints['distkey'] = ''
         constraints['sortkey'] = ''
         constraints['character_set'] = ''
+        constraints['collate'] = ''
 
         if constraint:
             for constraint_name, val in constraint.items():
@@ -191,6 +192,7 @@ class DdlParseColumn(DdlParseTableColumnBase):
         self._distkey        = True if len(constraints['distkey']) > 0 else False
         self._sortkey        = True if len(constraints['sortkey']) > 0 else False
         self._character_set  = constraints['character_set'] if constraints['character_set'] else None
+        self._collate = constraints['collate'] if constraints['collate'] else None
 
         self._auto_random = True if len(constraints['auto_random']) > 0 else False
         self._auto_random_bits = None
@@ -295,6 +297,10 @@ class DdlParseColumn(DdlParseTableColumnBase):
     @property
     def character_set(self):
         return self._character_set
+
+    @property
+    def collate(self):
+        return self._collate
 
     @property
     def bigquery_data_type(self):
@@ -596,8 +602,8 @@ class DdlParse(DdlParseBase):
         map(CaselessKeyword, "CREATE, TABLE, TEMP, CONSTRAINT, NOT NULL, PRIMARY KEY, UNIQUE, UNIQUE KEY, FOREIGN KEY, REFERENCES, KEY, CHAR, BYTE".replace(", ", ",").split(","))
     _TYPE_UNSIGNED, _TYPE_ZEROFILL = \
         map(CaselessKeyword, "UNSIGNED, ZEROFILL".replace(", ", ",").split(","))
-    _COL_ATTR_DISTKEY, _COL_ATTR_SORTKEY, _COL_ATTR_CHARACTER_SET = \
-        map(CaselessKeyword, "DISTKEY, SORTKEY, CHARACTER SET".replace(", ", ",").split(","))
+    _COL_ATTR_DISTKEY, _COL_ATTR_SORTKEY, _COL_ATTR_CHARACTER_SET, _COL_ATTR_COLLATE = \
+        map(CaselessKeyword, "DISTKEY, SORTKEY, CHARACTER SET, COLLATE".replace(", ", ",").split(","))
     _FK_MATCH = \
         CaselessKeyword("MATCH") + Word(alphanums + "_")
     _FK_ON, _FK_ON_OPT_RESTRICT, _FK_ON_OPT_CASCADE, _FK_ON_OPT_SET_NULL, _FK_ON_OPT_NO_ACTION = \
@@ -675,6 +681,7 @@ class DdlParse(DdlParseBase):
                             & Optional(_COL_ATTR_DISTKEY)("distkey")  # Redshift
                             & Optional(_COL_ATTR_SORTKEY)("sortkey")  # Redshift
                             & Optional(Suppress(_COL_ATTR_CHARACTER_SET) + Word(alphanums + "_")("character_set"))  # MySQL
+                            & Optional(Suppress(_COL_ATTR_COLLATE) + Word(alphanums + "_")("collate"))  # MySQL
                         )("constraint")
                     )
                 )("column")
@@ -759,7 +766,7 @@ class DdlParse(DdlParseBase):
                     if ret_col["type"] == "PRIMARY KEY":
                         col.not_null = True
                         col.primary_key = True
-                    elif ret_col["type"] in ["UNIQUE", "UNIQUE KEY"]:
+                    elif ret_col["type"] in ["UNIQUE", "UNIQUE KEY", "UNIQUE INDEX"]:
                         col.unique = True
                     elif ret_col["type"] == "NOT NULL":
                         col.not_null = True
