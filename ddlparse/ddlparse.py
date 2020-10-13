@@ -598,10 +598,10 @@ class DdlParse(DdlParseBase):
     """DDL parser"""
 
     _LPAR, _RPAR, _COMMA, _SEMICOLON, _DOT, _DOUBLEQUOTE, _BACKQUOTE, _SPACE = map(Suppress, "(),;.\"` ")
-    _CREATE, _TABLE, _TEMP, _CONSTRAINT, _NOT_NULL, _PRIMARY_KEY, _UNIQUE, _UNIQUE_KEY, _FOREIGN_KEY, _REFERENCES, _KEY, _CHAR_SEMANTICS, _BYTE_SEMANTICS = \
-        map(CaselessKeyword, "CREATE, TABLE, TEMP, CONSTRAINT, NOT NULL, PRIMARY KEY, UNIQUE, UNIQUE KEY, FOREIGN KEY, REFERENCES, KEY, CHAR, BYTE".replace(", ", ",").split(","))
-    _TYPE_UNSIGNED, _TYPE_ZEROFILL = \
-        map(CaselessKeyword, "UNSIGNED, ZEROFILL".replace(", ", ",").split(","))
+    _CREATE, _TABLE, _TEMP, _CONSTRAINT, _NULL, _NOT_NULL, _PRIMARY_KEY, _UNIQUE, _UNIQUE_KEY, _FOREIGN_KEY, _REFERENCES, _KEY, _CHAR_SEMANTICS, _BYTE_SEMANTICS = \
+        map(CaselessKeyword, "CREATE, TABLE, TEMP, CONSTRAINT, NULL, NOT NULL, PRIMARY KEY, UNIQUE, UNIQUE KEY, FOREIGN KEY, REFERENCES, KEY, CHAR, BYTE".replace(", ", ",").split(","))
+    _TYPE_SIGNED, _TYPE_UNSIGNED, _TYPE_ZEROFILL = \
+        map(CaselessKeyword, "SIGNED, UNSIGNED, ZEROFILL".replace(", ", ",").split(","))
     _COL_ATTR_DISTKEY, _COL_ATTR_SORTKEY, _COL_ATTR_CHARACTER_SET, _COL_ATTR_COLLATE = \
         map(CaselessKeyword, "DISTKEY, SORTKEY, CHARACTER SET, COLLATE".replace(", ", ",").split(","))
     _FK_MATCH = \
@@ -658,7 +658,10 @@ class DdlParse(DdlParseBase):
                             + Optional(CaselessKeyword("WITHOUT TIME ZONE") ^ CaselessKeyword("WITH TIME ZONE") ^ CaselessKeyword("PRECISION") ^ CaselessKeyword("VARYING"))
                         )("type_name")
                         + Optional(_LPAR + Regex(r"[\d\*]+\s*,*\s*\d*")("length") + Optional(_CHAR_SEMANTICS | _BYTE_SEMANTICS)("semantics") + _RPAR)
-                        + Optional(_TYPE_UNSIGNED)("unsigned")
+                        + Optional(
+                            (_TYPE_UNSIGNED)("unsigned")
+                            ^ (_TYPE_SIGNED)("signed")
+                        )
                         + Optional(_TYPE_ZEROFILL)("zerofill")
                     )("type")
                     + Optional(Word(r"\[\]"))("array_brackets")
@@ -762,7 +765,6 @@ class DdlParse(DdlParseBase):
                 # set column constraint
                 for col_name in ret_col["constraint_columns"]:
                     col = self._table.columns[col_name]
-
                     if ret_col["type"] == "PRIMARY KEY":
                         col.not_null = True
                         col.primary_key = True
