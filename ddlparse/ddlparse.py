@@ -11,7 +11,7 @@ import re, textwrap, json
 from collections import OrderedDict
 from enum import IntEnum
 
-from pyparsing import CaselessKeyword, Forward, Word, Regex, alphanums, \
+from pyparsing import CaselessKeyword, Forward, Word, Regex, alphas, alphanums, \
     delimitedList, Suppress, Optional, Group, OneOrMore
 
 
@@ -635,7 +635,7 @@ class DdlParse(DdlParseBase):
                         (
                             (_PRIMARY_KEY ^ _UNIQUE ^ _UNIQUE_KEY ^ _NOT_NULL)("type")
                             + Optional(_SUPPRESS_QUOTE) + Optional(Word(alphanums + "_"))("name") + Optional(_SUPPRESS_QUOTE)
-                            + _LPAR + Group(delimitedList(Optional(_SUPPRESS_QUOTE) + Word(alphanums + "_") + Optional(_SUPPRESS_QUOTE)))("constraint_columns") + _RPAR
+                            + _LPAR + Group(delimitedList(Group(Optional(_SUPPRESS_QUOTE) + Word(alphas, alphanums + "_")("col_name") + Optional(_SUPPRESS_QUOTE) + Optional(_LPAR + Regex(r"\d+") + _RPAR)('prefix_length'))))("constraint_columns") + _RPAR
                         )
                         |
                         (
@@ -766,7 +766,7 @@ class DdlParse(DdlParseBase):
             elif ret_col.getName() == "constraint":
                 # set column constraint
                 for col_name in ret_col["constraint_columns"]:
-                    col = self._table.columns[col_name]
+                    col = self._table.columns[col_name[0]]
                     if ret_col["type"] == "PRIMARY KEY":
                         col.not_null = True
                         col.primary_key = True
