@@ -116,6 +116,8 @@ class DdlParseColumn(DdlParseTableColumnBase):
         self._data_type = ' '.join(data_type_array["type_name"]).upper()
         self._numeric_is_unsigned = True if "unsigned" in data_type_array else False
         self._numeric_is_zerofill = True if "zerofill" in data_type_array else False
+        if self._numeric_is_zerofill:
+            self._numeric_is_unsigned = True
         self._length = None
         self._scale = None
 
