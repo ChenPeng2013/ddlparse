@@ -1,5 +1,3 @@
-# -*- coding: utf-8 -*-
-#
 # Copyright (C) 2018 Shinichi Takii, shinichi.takii@shaketh.com
 #
 # This module is part of python-ddlparse and is released under
@@ -164,6 +162,8 @@ class DdlParseColumn(DdlParseTableColumnBase):
         self._constraint = None if constraint is None else ' '.join(constraint).upper()
 
         constraints = {}
+        constraints['generated_column'] = ''
+        constraints['generated_column_type'] = ''
         constraints['null'] = ''
         constraints['auto_increment'] = ''
         constraints['auto_random'] = ''
@@ -184,6 +184,12 @@ class DdlParseColumn(DdlParseTableColumnBase):
 
         self._pk = True if re.search("PRIMARY", constraints['key'], re.IGNORECASE) else False
 
+        self._generated_column = constraints['generated_column'] if constraints['generated_column'] else None
+        self._generated_column_type = None
+        if self._generated_column is not None:
+            self._generated_column_type = constraints['generated_column_type'].upper()
+            if self._generated_column_type == '':
+                self._generated_column_type = "VIRTUAL"
         self._not_null = False
         if self._pk or re.search(r"(NOT\s+NULL)", constraints['null'], re.IGNORECASE):
             self._not_null = True
@@ -267,6 +273,14 @@ class DdlParseColumn(DdlParseTableColumnBase):
     @unique.setter
     def unique(self, flag):
         self._unique = flag
+
+    @property
+    def generated_column(self):
+        return self._generated_column
+
+    @property
+    def generated_column_type(self):
+        return self._generated_column_type
 
     @property
     def auto_increment(self):
@@ -671,7 +685,13 @@ class DdlParse(DdlParseBase):
                     + Optional(
                         Regex(r"(?!--)", re.IGNORECASE)
                         + Group(
-                            Optional(Regex(r"\b(?:NOT\s+)NULL?\b", re.IGNORECASE))("null")
+                            Optional(
+                                Regex(
+                                    r"\b(GENERATED ALWAYS )?AS\b\s+(?:((?:[A-Za-z0-9_\.\'\" -\{\}]|[^\x01-\x7E])*\:\:(?:character varying)?[A-Za-z0-9\[\]]+)|(?:\')((?:\\\'|[^\']|,)+)(?:\')|(?:\")((?:\\\"|[^\"]|,)+)(?:\")|([^,\s]+))",
+                                    re.IGNORECASE)("generated_column") +
+                                Optional(Regex(r"\bVIRTUAL\b", re.IGNORECASE) ^ Regex(r"\bSTORED\b", re.IGNORECASE))("generated_column_type")
+                            )
+                            & Optional(Regex(r"\b(?:NOT\s+)NULL?\b", re.IGNORECASE))("null")
                             & Optional(
                                 Regex(r"\bAUTO_INCREMENT\b", re.IGNORECASE)("auto_increment")
                                 # Support TiDB AutoRandom
@@ -679,7 +699,8 @@ class DdlParse(DdlParseBase):
                                 ^ "/*T![auto_rand]" + Regex(r"AUTO_RANDOM", re.IGNORECASE)("auto_random") + _LPAR + Regex(r"\b\d+\b")("auto_random_bits") + _RPAR + "*/"
                             )
                             & Optional(Regex(r"\b(UNIQUE|PRIMARY)(?:\s+)(KEY|INDEX)?\b", re.IGNORECASE))("key")
-                            & Optional(Regex(
+                            & Optional(
+                                Regex(
                                 r"\bDEFAULT\b\s+(?:((?:[A-Za-z0-9_\.\'\" -\{\}]|[^\x01-\x7E])*\:\:(?:character varying)?[A-Za-z0-9\[\]]+)|(?:\')((?:\\\'|[^\']|,)+)(?:\')|(?:\")((?:\\\"|[^\"]|,)+)(?:\")|([^,\s]+))",
                                 re.IGNORECASE))("default")
                             & Optional(Regex(r"\bCOMMENT\b\s+(\'(\\\'|[^\']|,)+\'|\"(\\\"|[^\"]|,)+\"|[^,\s]+)", re.IGNORECASE))("comment")
