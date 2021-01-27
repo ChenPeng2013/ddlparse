@@ -636,6 +636,8 @@ class DdlParse(DdlParseBase):
     args = arg + ZeroOrMore("," + arg)
     expression << Optional(functor) + Group(_LPAR + Optional(args) + _RPAR)
 
+    _CHARSET = CaselessKeyword("CHARACTER SET") | CaselessKeyword("CHARSET")
+
 
     _CREATE_TABLE_STATEMENT = Suppress(_CREATE) + Optional(_TEMP)("temp") + Suppress(_TABLE) + Optional(Suppress(CaselessKeyword("IF NOT EXISTS"))) \
         + Optional(_SUPPRESS_QUOTE) + Optional(Word(alphanums + "_")("schema") + Optional(_SUPPRESS_QUOTE) + _DOT + Optional(_SUPPRESS_QUOTE)) + Word(alphanums + "_<>")("table") + Optional(_SUPPRESS_QUOTE) \
@@ -707,7 +709,7 @@ class DdlParse(DdlParseBase):
                             & Optional(Regex(r"\bENCODE\s+[A-Za-z0-9]+\b", re.IGNORECASE))("encode")  # Redshift
                             & Optional(_COL_ATTR_DISTKEY)("distkey")  # Redshift
                             & Optional(_COL_ATTR_SORTKEY)("sortkey")  # Redshift
-                            & Optional(Suppress(_COL_ATTR_CHARACTER_SET) + Word(alphanums + "_")("character_set"))  # MySQL
+                            & Optional(_CHARSET + identifier("character_set"))  # MySQL
                             & Optional(Suppress(_COL_ATTR_COLLATE) + Word(alphanums + "_")("collate"))  # MySQL
                         )("constraint")
                     )
