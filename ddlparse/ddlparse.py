@@ -9,8 +9,8 @@ import re, textwrap, json
 from collections import OrderedDict
 from enum import IntEnum
 
-from pyparsing import CaselessKeyword, Forward, Word, Regex, alphas, alphanums, \
-    delimitedList, Suppress, Optional, Group, OneOrMore
+from pyparsing import CaselessKeyword, Forward, Word, Regex, alphas, alphanums, nums, \
+    delimitedList, Suppress, Optional, Group, OneOrMore, ZeroOrMore, Literal, originalTextFor
 
 
 class DdlParseBase():
@@ -213,14 +213,7 @@ class DdlParseColumn(DdlParseTableColumnBase):
             if len(matches) > 0:
                 self._encode = matches[0]
 
-        self._default = None
-        if constraint is not None:
-            matches = re.findall(
-                r"\bDEFAULT\b\s+(?:((?:[A-Za-z0-9_\.\'\" -\{\}]|[^\x01-\x7E])*\:\:(?:character varying)?[A-Za-z0-9\[\]]+)|(?:\')((?:\\\'|[^\']|,)+)(?:\')|(?:\")((?:\\\"|[^\"]|,)+)(?:\")|([^,\s]+))",
-                constraints['default'],
-                re.IGNORECASE)
-            if len(matches) > 0:
-                self._default = ''.join(matches[0])
+        self._default = constraints["default"] if constraints["default"] else None
 
         self._comment = None
         if constraint is not None:
@@ -633,6 +626,16 @@ class DdlParse(DdlParseBase):
 
     _COMMENT = Suppress("--" + Regex(r".+"))
 
+    operator = Literal("+") | Literal("-") | Literal("*") | Literal("/") | Literal("%") | CaselessKeyword("DIV") | CaselessKeyword("MOD")
+    identifier = Word(alphas, alphanums + "_")
+    integer = Word(nums)
+    term = identifier | integer
+    functor = identifier
+    expression = Forward()
+    arg = Group(term + operator + term) | Group(expression) | term
+    args = arg + ZeroOrMore("," + arg)
+    expression << Optional(functor) + Group(_LPAR + Optional(args) + _RPAR)
+
 
     _CREATE_TABLE_STATEMENT = Suppress(_CREATE) + Optional(_TEMP)("temp") + Suppress(_TABLE) + Optional(Suppress(CaselessKeyword("IF NOT EXISTS"))) \
         + Optional(_SUPPRESS_QUOTE) + Optional(Word(alphanums + "_")("schema") + Optional(_SUPPRESS_QUOTE) + _DOT + Optional(_SUPPRESS_QUOTE)) + Word(alphanums + "_<>")("table") + Optional(_SUPPRESS_QUOTE) \
@@ -685,10 +688,10 @@ class DdlParse(DdlParseBase):
                     + Optional(
                         Regex(r"(?!--)", re.IGNORECASE)
                         + Group(
+                            # Support generated column
                             Optional(
-                                Regex(
-                                    r"\b(GENERATED ALWAYS )?AS\b\s+(?:((?:[A-Za-z0-9_\.\'\" -\{\}]|[^\x01-\x7E])*\:\:(?:character varying)?[A-Za-z0-9\[\]]+)|(?:\')((?:\\\'|[^\']|,)+)(?:\')|(?:\")((?:\\\"|[^\"]|,)+)(?:\")|([^,\s]+))",
-                                    re.IGNORECASE)("generated_column") +
+                                Optional(CaselessKeyword("GENERATED ALWAYS")) + CaselessKeyword("AS") +
+                                originalTextFor(expression)("generated_column") +
                                 Optional(Regex(r"\bVIRTUAL\b", re.IGNORECASE) ^ Regex(r"\bSTORED\b", re.IGNORECASE))("generated_column_type")
                             )
                             & Optional(Regex(r"\b(?:NOT\s+)NULL?\b", re.IGNORECASE))("null")
@@ -699,10 +702,7 @@ class DdlParse(DdlParseBase):
                                 ^ "/*T![auto_rand]" + Regex(r"AUTO_RANDOM", re.IGNORECASE)("auto_random") + _LPAR + Regex(r"\b\d+\b")("auto_random_bits") + _RPAR + "*/"
                             )
                             & Optional(Regex(r"\b(UNIQUE|PRIMARY)(?:\s+)(KEY|INDEX)?\b", re.IGNORECASE))("key")
-                            & Optional(
-                                Regex(
-                                r"\bDEFAULT\b\s+(?:((?:[A-Za-z0-9_\.\'\" -\{\}]|[^\x01-\x7E])*\:\:(?:character varying)?[A-Za-z0-9\[\]]+)|(?:\')((?:\\\'|[^\']|,)+)(?:\')|(?:\")((?:\\\"|[^\"]|,)+)(?:\")|([^,\s]+))",
-                                re.IGNORECASE))("default")
+                            & Optional(CaselessKeyword("DEFAULT") + originalTextFor(expression | term)("default"))
                             & Optional(Regex(r"\bCOMMENT\b\s+(\'(\\\'|[^\']|,)+\'|\"(\\\"|[^\"]|,)+\"|[^,\s]+)", re.IGNORECASE))("comment")
                             & Optional(Regex(r"\bENCODE\s+[A-Za-z0-9]+\b", re.IGNORECASE))("encode")  # Redshift
                             & Optional(_COL_ATTR_DISTKEY)("distkey")  # Redshift
