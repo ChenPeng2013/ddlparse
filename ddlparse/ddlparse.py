@@ -637,6 +637,10 @@ class DdlParse(DdlParseBase):
     expression << Optional(functor) + Group(_LPAR + Optional(args) + _RPAR)
 
     _CHARSET = CaselessKeyword("CHARACTER SET") | CaselessKeyword("CHARSET")
+    _PARTITION_TYPE = CaselessKeyword("PARTITION BY") + (CaselessKeyword("RANGE") | CaselessKeyword("HASH"))
+    _PARTITION_DEFINITION = CaselessKeyword("PARTITION") + identifier + CaselessKeyword("VALUES LESS THAN") + originalTextFor(expression | term)
+    _PARTITIONS = _PARTITION_TYPE + _LPAR + originalTextFor(expression | term) + _RPAR + Optional(CaselessKeyword("PARTITIONS") + integer) + _LPAR + OneOrMore(_PARTITION_DEFINITION) + _RPAR
+    _INDEX_VISIBILITY = CaselessKeyword("INVISIBLE") | CaselessKeyword("VISIBLE")
 
 
     _CREATE_TABLE_STATEMENT = Suppress(_CREATE) + Optional(_TEMP)("temp") + Suppress(_TABLE) + Optional(Suppress(CaselessKeyword("IF NOT EXISTS"))) \
@@ -655,7 +659,7 @@ class DdlParse(DdlParseBase):
                         (
                             (_PRIMARY_KEY ^ _UNIQUE ^ _UNIQUE_KEY ^ _NOT_NULL)("type")
                             + Optional(_SUPPRESS_QUOTE) + Optional(Word(alphanums + "_"))("name") + Optional(_SUPPRESS_QUOTE)
-                            + _LPAR + Group(delimitedList(Group(Optional(_SUPPRESS_QUOTE) + Word(alphas, alphanums + "_")("col_name") + Optional(_SUPPRESS_QUOTE) + Optional(_LPAR + Regex(r"\d+") + _RPAR)('prefix_length'))))("constraint_columns") + _RPAR
+                            + _LPAR + Group(delimitedList(Group(Optional(_SUPPRESS_QUOTE) + Word(alphas, alphanums + "_")("col_name") + Optional(_SUPPRESS_QUOTE) + Optional(_LPAR + Regex(r"\d+") + _RPAR)('prefix_length'))))("constraint_columns") + _RPAR + Optional(_INDEX_VISIBILITY)
                         )
                         |
                         (
@@ -717,7 +721,7 @@ class DdlParse(DdlParseBase):
                 |
                 _COMMENT
             )
-        )("columns")
+        )("columns") + _RPAR + Optional(_PARTITIONS)
 
     _DDL_PARSE_EXPR = Forward()
     _DDL_PARSE_EXPR << OneOrMore(_COMMENT | _CREATE_TABLE_STATEMENT)
