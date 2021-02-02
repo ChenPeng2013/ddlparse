@@ -626,13 +626,21 @@ class DdlParse(DdlParseBase):
 
     _COMMENT = Suppress("--" + Regex(r".+"))
 
-    operator = Literal("+") | Literal("-") | Literal("*") | Literal("/") | Literal("%") | CaselessKeyword("DIV") | CaselessKeyword("MOD")
+    center_operator = Literal("+") | Literal("-") | Literal("*") | Literal("/") | Literal("%") | CaselessKeyword("DIV") \
+        | CaselessKeyword("MOD") | Literal("&") | Literal(">") | Literal(">>") | Literal(">=") | Literal("<") \
+        | Literal("<=") | Literal("<>") | Literal("<=") | Literal("<<") | Literal("<=>") | Literal("->") \
+        | Literal("->>") | Literal(":=") | Literal("=") | Literal("^") | CaselessKeyword("AND") | Literal("&&") \
+        | CaselessKeyword("IS") | CaselessKeyword("IS NOT") | CaselessKeyword("OR") | Literal("||") \
+        | CaselessKeyword("XOR") | Literal("|") | Literal("~")
+    left_operator = CaselessKeyword("BINARY")
+    right_operator = CaselessKeyword("IS NOT NULL") | CaselessKeyword("IS NULL")
     identifier = Word(alphas, alphanums + "_")
     integer = Word(nums)
     term = identifier | integer
     functor = identifier
     expression = Forward()
-    arg = Group(term + operator + term) | Group(expression) | term
+    operand = expression | term
+    arg = Group(left_operator + operand) | Group(operand + right_operator) | Group(operand + center_operator + operand) | operand
     args = arg + ZeroOrMore("," + arg)
     expression << Optional(functor) + Group(_LPAR + Optional(args) + _RPAR)
 
