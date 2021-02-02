@@ -607,7 +607,7 @@ class DdlParseTable(DdlParseTableColumnBase):
 class DdlParse(DdlParseBase):
     """DDL parser"""
 
-    _LPAR, _RPAR, _COMMA, _SEMICOLON, _DOT, _DOUBLEQUOTE, _BACKQUOTE, _SPACE = map(Suppress, "(),;.\"` ")
+    _LPAR, _RPAR, _COMMA, _SEMICOLON, _DOT, _SINGLEQUOTE, _DOUBLEQUOTE, _BACKQUOTE, _SPACE = map(Suppress, "(),;.'\"` ")
     _CREATE, _TABLE, _TEMP, _CONSTRAINT, _NULL, _NOT_NULL, _PRIMARY_KEY, _UNIQUE, _UNIQUE_KEY, _FOREIGN_KEY, _REFERENCES, _KEY, _CHAR_SEMANTICS, _BYTE_SEMANTICS = \
         map(CaselessKeyword, "CREATE, TABLE, TEMP, CONSTRAINT, NULL, NOT NULL, PRIMARY KEY, UNIQUE, UNIQUE KEY, FOREIGN KEY, REFERENCES, KEY, CHAR, BYTE".replace(", ", ",").split(","))
     _TYPE_SIGNED, _TYPE_UNSIGNED, _TYPE_ZEROFILL = \
@@ -622,7 +622,7 @@ class DdlParse(DdlParseBase):
         _FK_ON + CaselessKeyword("DELETE") + (_FK_ON_OPT_RESTRICT | _FK_ON_OPT_CASCADE | _FK_ON_OPT_SET_NULL | _FK_ON_OPT_NO_ACTION)
     _FK_ON_UPDATE = \
         _FK_ON + CaselessKeyword("UPDATE") + (_FK_ON_OPT_RESTRICT | _FK_ON_OPT_CASCADE | _FK_ON_OPT_SET_NULL | _FK_ON_OPT_NO_ACTION)
-    _SUPPRESS_QUOTE = _BACKQUOTE | _DOUBLEQUOTE
+    _SUPPRESS_QUOTE = _BACKQUOTE | _DOUBLEQUOTE | _SINGLEQUOTE
 
     _COMMENT = Suppress("--" + Regex(r".+"))
 
@@ -634,7 +634,7 @@ class DdlParse(DdlParseBase):
         | CaselessKeyword("XOR") | Literal("|") | Literal("~")
     left_operator = CaselessKeyword("BINARY")
     right_operator = CaselessKeyword("IS NOT NULL") | CaselessKeyword("IS NULL")
-    identifier = Word(alphas, alphanums + "_")
+    identifier = Optional(_SUPPRESS_QUOTE) + Word(alphas, alphanums + "_") + Optional(_SUPPRESS_QUOTE)
     integer = Word(nums)
     term = identifier | integer
     functor = identifier
