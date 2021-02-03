@@ -148,12 +148,6 @@ class DdlParseColumn(DdlParseTableColumnBase):
             self._pk = False if self._constraint is None or not re.search("PRIMARY KEY", self._constraint) else True
             self._unique = False if self._constraint is None or not re.search("UNIQUE", self._constraint) else True
 
-            self._comment = None
-            if constraint is not None:
-                matches = re.findall(r"(?:\bCOMMENT\b\s+)(['\"])(.+)\1", constraint, re.IGNORECASE)
-                if len(matches) > 0:
-                    self._comment = matches[0][1]
-
             return
 
 
@@ -215,7 +209,7 @@ class DdlParseColumn(DdlParseTableColumnBase):
 
         self._default = constraints["default"] if constraints["default"] else None
 
-        self._comment = None
+        self._comment = constraints["comment"] if constraints["comment"] else None
         if constraint is not None:
             matches = re.findall(r"\bCOMMENT\b\s+(?:(?:\')((?:\\\'|[^\']|,)+)(?:\')|(?:\")((?:\\\"|[^\"]|,)+)(?:\")|([^,\s]+))", constraints['comment'], re.IGNORECASE)
             if len(matches) > 0:
@@ -659,16 +653,13 @@ class DdlParse(DdlParseBase):
             OneOrMore(
                 _COMMENT
                 |
-                # Ignore Index
-                Suppress(_KEY + Word(alphanums + "_'`() "))
-                |
                 Group(
                     Optional(Suppress(_CONSTRAINT) + Optional(_SUPPRESS_QUOTE) + Word(alphanums + "_")("name") + Optional(_SUPPRESS_QUOTE))
                     + (
                         (
-                            (_PRIMARY_KEY ^ _UNIQUE ^ _UNIQUE_KEY ^ _NOT_NULL)("type")
+                            (_KEY ^ _PRIMARY_KEY ^ _UNIQUE ^ _UNIQUE_KEY ^ _NOT_NULL)("type")
                             + Optional(_SUPPRESS_QUOTE) + Optional(Word(alphanums + "_"))("name") + Optional(_SUPPRESS_QUOTE)
-                            + _LPAR + Group(delimitedList(Group(Optional(_SUPPRESS_QUOTE) + Word(alphas, alphanums + "_")("col_name") + Optional(_SUPPRESS_QUOTE) + Optional(_LPAR + Regex(r"\d+") + _RPAR)('prefix_length'))))("constraint_columns") + _RPAR + Optional(_INDEX_VISIBILITY)
+                            + _LPAR + Group(delimitedList(Group(OneOrMore(Optional(_SUPPRESS_QUOTE) + Word(alphas, alphanums + "_")("col_name") + Optional(_SUPPRESS_QUOTE) + Optional(_LPAR + Regex(r"\d+") + _RPAR)('prefix_length')))))("constraint_columns") + _RPAR + Optional(_INDEX_VISIBILITY)
                         )
                         |
                         (
@@ -717,7 +708,7 @@ class DdlParse(DdlParseBase):
                                 ^ "/*T![auto_rand]" + Regex(r"AUTO_RANDOM", re.IGNORECASE)("auto_random") + _LPAR + Regex(r"\b\d+\b")("auto_random_bits") + _RPAR + "*/"
                             )
                             & Optional(Regex(r"\b(UNIQUE|PRIMARY)(?:\s+)(KEY|INDEX)?\b", re.IGNORECASE))("key")
-                            & Optional(CaselessKeyword("DEFAULT") + originalTextFor(expression | term)("default"))
+                            & Optional(CaselessKeyword("DEFAULT") + originalTextFor(expression | term | quoted_content)("default"))
                             & Optional(CaselessKeyword("COMMENT") + quoted_content("comment"))
                             & Optional(Regex(r"\bENCODE\s+[A-Za-z0-9]+\b", re.IGNORECASE))("encode")  # Redshift
                             & Optional(_COL_ATTR_DISTKEY)("distkey")  # Redshift
