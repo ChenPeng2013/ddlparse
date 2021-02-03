@@ -10,7 +10,7 @@ from collections import OrderedDict
 from enum import IntEnum
 
 from pyparsing import CaselessKeyword, Forward, Word, Regex, alphas, alphanums, nums, \
-    delimitedList, Suppress, Optional, Group, OneOrMore, ZeroOrMore, Literal, originalTextFor
+    delimitedList, Suppress, Optional, Group, OneOrMore, ZeroOrMore, Literal, originalTextFor, QuotedString
 
 
 class DdlParseBase():
@@ -634,8 +634,9 @@ class DdlParse(DdlParseBase):
         | CaselessKeyword("XOR") | Literal("|") | Literal("~")
     left_operator = CaselessKeyword("BINARY")
     right_operator = CaselessKeyword("IS NOT NULL") | CaselessKeyword("IS NULL")
-    identifier = Optional(_SUPPRESS_QUOTE) + Word(alphas, alphanums + "_") + Optional(_SUPPRESS_QUOTE)
+    identifier = Word(alphas, alphanums + "_")
     integer = Word(nums)
+    quoted_content = QuotedString('"') | QuotedString("'")
     term = identifier | integer
     functor = identifier
     expression = Forward()
@@ -717,7 +718,7 @@ class DdlParse(DdlParseBase):
                             )
                             & Optional(Regex(r"\b(UNIQUE|PRIMARY)(?:\s+)(KEY|INDEX)?\b", re.IGNORECASE))("key")
                             & Optional(CaselessKeyword("DEFAULT") + originalTextFor(expression | term)("default"))
-                            & Optional(Regex(r"\bCOMMENT\b\s+(\'(\\\'|[^\']|,)+\'|\"(\\\"|[^\"]|,)+\"|[^,\s]+)", re.IGNORECASE))("comment")
+                            & Optional(CaselessKeyword("COMMENT") + quoted_content("comment"))
                             & Optional(Regex(r"\bENCODE\s+[A-Za-z0-9]+\b", re.IGNORECASE))("encode")  # Redshift
                             & Optional(_COL_ATTR_DISTKEY)("distkey")  # Redshift
                             & Optional(_COL_ATTR_SORTKEY)("sortkey")  # Redshift
