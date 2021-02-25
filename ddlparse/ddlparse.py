@@ -620,12 +620,12 @@ class DdlParse(DdlParseBase):
 
     _COMMENT = Suppress("--" + Regex(r".+"))
 
-    center_operator = Literal("+") | Literal("-") | Literal("*") | Literal("/") | Literal("%") | CaselessKeyword("DIV") \
-        | CaselessKeyword("MOD") | Literal("&") | Literal(">") | Literal(">>") | Literal(">=") | Literal("<") \
-        | Literal("<=") | Literal("<>") | Literal("<=") | Literal("<<") | Literal("<=>") | Literal("->") \
-        | Literal("->>") | Literal(":=") | Literal("=") | Literal("^") | CaselessKeyword("AND") | Literal("&&") \
-        | CaselessKeyword("IS") | CaselessKeyword("IS NOT") | CaselessKeyword("OR") | Literal("||") \
-        | CaselessKeyword("XOR") | Literal("|") | Literal("~")
+    center_operator = CaselessKeyword("DIV") | CaselessKeyword("MOD") | Literal("&") | Literal("<=>") | Literal(">>") \
+        | Literal(">=") | Literal("<=") | Literal("<>") | Literal("<=") | Literal("<<") | Literal("->>") \
+        | Literal("->") | Literal(":=") | Literal("=") | Literal("^") | CaselessKeyword("AND") | Literal("&&") \
+        | CaselessKeyword("IS") | CaselessKeyword("IS NOT") | CaselessKeyword("OR") | Literal("||") | Literal(">") \
+        | CaselessKeyword("XOR") | Literal("|") | Literal("~") | Literal("<") | Literal("+") | Literal("-") \
+        | Literal("*") | Literal("/") | Literal("%")
     left_operator = CaselessKeyword("BINARY")
     right_operator = CaselessKeyword("IS NOT NULL") | CaselessKeyword("IS NULL")
     identifier = Word(alphas, alphanums + "_")
