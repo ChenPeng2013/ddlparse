@@ -118,6 +118,9 @@ class DdlParseColumn(DdlParseTableColumnBase):
             self._numeric_is_unsigned = True
         self._length = None
         self._scale = None
+        self._enum_vals = None
+        if "enum_vals" in data_type_array:
+            self._enum_vals = data_type_array["enum_vals"]
 
         if "length" in data_type_array:
             matches = re.findall(r"([\d\*]+)\s*,*\s*(\d*)", data_type_array["length"])
@@ -280,6 +283,10 @@ class DdlParseColumn(DdlParseTableColumnBase):
     @property
     def auto_random_bits(self):
         return self._auto_random_bits
+
+    @property
+    def enum_vals(self):
+        return self._enum_vals
 
     @property
     def distkey(self):
@@ -683,7 +690,7 @@ class DdlParse(DdlParseBase):
                             Word(alphanums + "_")
                             + Optional(CaselessKeyword("WITHOUT TIME ZONE") ^ CaselessKeyword("WITH TIME ZONE") ^ CaselessKeyword("PRECISION") ^ CaselessKeyword("VARYING"))
                         )("type_name")
-                        + Optional(_LPAR + Regex(r"[\d\*]+\s*,*\s*\d*")("length") + Optional(_CHAR_SEMANTICS | _BYTE_SEMANTICS)("semantics") + _RPAR)
+                        + Optional((_LPAR + Regex(r"[\d\*]+\s*,*\s*\d*")("length") + Optional(_CHAR_SEMANTICS | _BYTE_SEMANTICS)("semantics") + _RPAR) ^ (_LPAR + delimitedList(OneOrMore(quoted_content))("enum_vals") + _RPAR))
                         + Optional(
                             (_TYPE_UNSIGNED)("unsigned")
                             ^ (_TYPE_SIGNED)("signed")
